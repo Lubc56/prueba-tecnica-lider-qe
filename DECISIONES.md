@@ -83,6 +83,23 @@ El generador de datos (Reto 3) va antes del flujo E2E (Reto 2) porque el Reto 2 
   - `summary-flaky` pasa a ser la prueba de F1.
 - **Local y pipeline:** el mismo comando (`npm run test:e2e`) en ambos. La config detecta `CI` y `BASE_URL`; el pipeline se ajusta en el Reto 5.
 
+### Reto 4: prueba no funcional
+
+El detalle (cómo ejecutar, parámetros, resultados y política de bloqueo) está en `performance/README.md`.
+
+- **k6 sobre JMeter:**
+  - el script es código versionado y revisable en un PR;
+  - los umbrales viven en el mismo archivo;
+  - el código de salida (99) integra directo con CI, sin plugins.
+- **Modelo cerrado (`constant-vus`) con 1 s de pausa:** "50 usuarios concurrentes" describe usuarios, no peticiones por segundo. Sin pausa sería una prueba de estrés. La pausa se ajusta con `THINK_TIME`.
+- **p95 y no promedio:** el "tiempo de respuesta objetivo" se interpreta como `p(95) < 800 ms`, porque el promedio esconde la cola de usuarios lentos.
+- **Errores con aborto anticipado:** `http_req_failed < 1 %` con `abortOnFail` tras 30 s de calentamiento, para no gastar 5 minutos de pipeline en una prueba ya perdida.
+- **`checks > 99 %`:** se valida el contenido, no solo el código HTTP; el resumen debe ser del cliente pedido.
+- **Precondición en `setup()`:** si el ambiente no tiene el cliente, falla en el primer segundo con un mensaje claro.
+- **Evidencia que no se pierde en silencio:** si la carpeta de destino no existe, k6 no escribe el resumen y aun así sale con código 0. El script de npm crea `performance/results/` antes de ejecutar.
+- **Dashboard en vivo y reporte HTML (`K6_WEB_DASHBOARD`):** el seguimiento visual equivale al de Gatling. Hallazgo: k6 no termina mientras un navegador siga conectado al dashboard. En CI no ocurre; en local está documentado en `performance/README.md`.
+- **Corrida completa ejecutada:** 50 usuarios, 5 minutos y 15.001 peticiones; p95 = 5.58 ms y 0 % de errores. El bloqueo se demostró con un objetivo imposible, que terminó con código 99.
+
 ## Actividades no completadas
 
 _Se completa al cierre._

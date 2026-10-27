@@ -226,6 +226,7 @@ Se usó **Claude Code** (Anthropic, modelo Claude Opus 5.5) como asistente duran
 ## Hora declarada de inicio y finalización
 
 - **Inicio:** 2026-10-27, 09:20 (UTC-5). Es el primer registro verificable: la instalación de dependencias.
-- **Finalización:** 2026-10-27, 12:21 (UTC-5). Hora del último commit de la entrega.
-- **Dedicación total:** 3 h 1 min, dentro del máximo de 3 horas.
+- **Finalización:** 2026-10-27, 12:21 (UTC-5). Hora del último commit con trabajo de la entrega.
+- **Dedicación total:** 3 h 1 min. Supera en 1 minuto el máximo esperado de 3 horas; ese minuto corresponde a los ajustes finales de documentación de la validación de cumplimiento.
+- **Corrección posterior:** la línea anterior decía por error "dentro del máximo de 3 horas" y se corrigió en un commit aparte, a las 12:22. Ese commit solo cambia la redacción, no el trabajo ni las horas declaradas.
 - **Nota:** el cierre inicial fue a las 11:23. Después se agregaron el README propio (con el enunciado separado en `ENUNCIADO.md`), la imagen oficial de Playwright en CI (el job E2E bajó de 499 s a 41 s), los PR de demostración con fallos forzados y los ajustes de la validación final de cumplimiento (diagnóstico a una página y documentación de la protección de rama). Cada paso tiene su commit.

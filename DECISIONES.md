@@ -137,6 +137,7 @@ El detalle (cómo ejecutar, parámetros, resultados y política de bloqueo) est�
   - Medición: instalar Chromium y sus dependencias del sistema tomó **480 s**; las pruebas, **5 s**. De esos 480 s, **459 s fueron paquetes del sistema** (`apt`: 25.9 MB a 56 kB/s desde el mirror de Ubuntu) y **4 s la descarga del navegador**.
   - Se descartaron los artifacts: guardan resultados de una corrida para descargarlos, no son para reutilizar dependencias entre corridas.
   - Se descartó cachear los navegadores (`actions/cache`): solo evita la descarga del navegador. Las dependencias del sistema (`apt`) se siguen instalando en cada corrida, y la documentación de Playwright desaconseja ese caché porque restaurarlo tarda casi lo mismo que descargar.
+  - **Resultado medido:** el job E2E pasó de **499 s a 41 s** (corridas `40541217080` y `40544091353`). Los 480 s de instalación se cambiaron por 26 s de descarga de la imagen.
   - La imagen `mcr.microsoft.com/playwright:v1.64.1-noble` trae todo instalado. Su versión debe coincidir con la de `@playwright/test`; si no, Playwright falla indicando que faltan los navegadores.
   - Las dependencias de npm ya se cacheaban con `setup-node` (`npm ci` tarda 2 s).
 
@@ -147,6 +148,14 @@ El detalle (cómo ejecutar, parámetros, resultados y política de bloqueo) est�
 3. **Falla forzada** (`RISK_MODE=rejected`): código 1, anotación `::error` con "esperado APPROVED, recibido REJECTED", y video, captura y traza **solo** de la prueba que falló.
 4. **Simulación del job de rendimiento:** el perfil reducido por variables de entorno sale con código 0 y resumen ✅; con un umbral imposible sale con código 99 y resumen ❌.
 5. **Ejecución real en GitHub Actions** (corrida `40541217080`, push a `main`): **en verde**. El job E2E corrió las 27 pruebas y el job de rendimiento, con perfil completo (15.001 peticiones), dio p95 = 2.79 ms y 0 % de errores.
+6. **Fallos forzados en GitHub**, con dos PR de demostración que simulan regresiones reales. Se cerraron sin merge y quedan en el historial:
+
+   | PR | Regresión simulada | Resultado del pipeline |
+   |---|---|---|
+   | [#1](https://github.com/Lubc56/prueba-tecnica-lider-qe/pull/1) | Cargo de servicio del 10 % al 15 % | ❌ E2E: 1 fallida y 26 pasan. El saldo esperado era $4069.30 y se recibió $4050.45. Se publicó `playwright-evidencia-fallo` (video, captura y traza). Rendimiento no se ejecutó. |
+   | [#2](https://github.com/Lubc56/prueba-tecnica-lider-qe/pull/2) | 1 s extra en `GET /api/clients/:id/summary` | ✅ E2E pasa, sin evidencias de fallo. ❌ k6 (perfil reducido de PR): `p(95)<800` incumplido con p95 = 1 s, **exit code 99**. |
+
+   El #1 demuestra que las validaciones de negocio detectan un cambio silencioso de dinero. El #2, que una degradación de rendimiento bloquea el PR aunque la funcionalidad esté intacta.
 
 ### Reto 6: liderazgo técnico
 

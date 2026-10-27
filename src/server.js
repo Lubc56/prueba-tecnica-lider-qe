@@ -55,7 +55,9 @@ app.get('/api/clients/:id', (req, res) => {
   return res.json(client);
 });
 
-app.get('/api/clients/:id/summary', (req, res) => {
+app.get('/api/clients/:id/summary', async (req, res) => {
+  // [DEMO] Simula una consulta lenta agregada al endpoint (1 s por petición).
+  await new Promise(resolve => setTimeout(resolve, 1000));
   const summary = getClientSummary(req.params.id);
   if (!summary) return res.status(404).json({ error: 'client not found' });
   return res.json(summary);

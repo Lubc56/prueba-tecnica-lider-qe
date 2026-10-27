@@ -150,24 +150,66 @@ El detalle está en `REVISION_PR.md`.
 - **Por qué rechazar y no solicitar cambios:** la credencial ya quedó en el historial de la rama (hay que rotarla y eliminar la rama), y el diseño exige reescribirlo sobre los componentes existentes.
 - **Acciones de equipo además del código:** escaneo de secretos en CI, la regla `no-wait-for-timeout`, bloqueo de URLs de producción, un checklist en la plantilla de PR y pair programming con el autor.
 
+## Evidencias entregadas
+
+| Evidencia | Ubicación |
+|---|---|
+| Reporte HTML de Playwright de la corrida final: 27 pruebas pasan, con capturas por paso y el JSON de confirmación por API | `evidence/playwright-report/` (abrir con `npx playwright show-report evidence/playwright-report`) |
+| Resultado de k6: 50 usuarios durante 5 minutos | `performance/evidence/summary.json` y `performance/evidence/report.html` |
+| Demostración de bloqueo por umbral (código 99) | `performance/evidence/bloqueo-demo.txt` |
+| Orden de trabajo | Historial de git: un commit por reto, desde el estado original (`Reto 0`) |
+
 ## Actividades no completadas
 
-_Se completa al cierre._
+| Pendiente | Riesgo | Acción siguiente |
+|---|---|---|
+| Primera ejecución real del pipeline en GitHub Actions | Diferencias entre el runner y la simulación local: dependencias del sistema, permisos, ambientes no creados | Crear el ambiente `ci` y el secreto `RISK_API_TOKEN`, publicar el repositorio y revisar la primera corrida |
+| Registrar F1–F7 en la herramienta de seguimiento del equipo | Defectos conocidos solo en la documentación, sin dueño ni fecha | Un ticket por defecto con su prueba asociada; F2, F3 y F5 marcados como bloqueantes de release |
+| Flujo E2E con el servicio de riesgo en `REJECTED` | Una regresión en el manejo del rechazo en la UI no se detectaría | Segundo proyecto de Playwright con su propia instancia en `RISK_MODE=rejected` |
+| Rendimiento con volumen de datos representativo | La latencia medida es el mejor caso (BD recién creada); con miles de operaciones puede incumplir el SLO | Sembrar la BD con un volumen similar a producción y repetir en un ambiente parecido a producción |
+| Barreras propuestas en el Reto 6: escaneo de secretos, `no-wait-for-timeout`, bloqueo de URLs de producción | Credenciales o esperas fijas pueden volver a llegar a un PR | Agregar `gitleaks` y `eslint-plugin-playwright` al pipeline como pasos bloqueantes |
+| Caché de navegadores de Playwright en CI | Cerca de 1 minuto extra por corrida | Cachear `~/.cache/ms-playwright` con la versión de Playwright como clave |
 
 ## Riesgos pendientes
 
-- **Token expuesto en el historial:** el workflow original traía `RISK_API_TOKEN: qa-token-2026-visible` y quedó en el commit `Reto 0`, que se conserva como línea base. Ya no está en el código, pero publicar el repositorio expone el historial: si el token es real, debe rotarse.
+- **Defectos críticos abiertos en el producto:** F2 y F3 (pérdida de dinero) y F5 (XSS) siguen presentes. La suite los detecta, pero no deben salir a producción.
+- **Token expuesto en el historial:** el workflow original traía el valor de `RISK_API_TOKEN` en texto plano y quedó en el commit `Reto 0`, que se conserva como línea base. Ya no está en el código, pero publicar el repositorio expone el historial: si el token es real, debe rotarse.
 - **Rendimiento en runners compartidos:** la app y k6 comparten máquina, así que el job detecta regresiones relativas, no capacidad de producción (ver `performance/README.md`).
 - El camino `REJECTED` del servicio de riesgo no queda cubierto con `RISK_MODE=approved`. Cubrirlo requiere una segunda instancia u otro proyecto de Playwright con `RISK_MODE=rejected`.
 
 ## Herramientas utilizadas
 
-_Se completa al cierre._
+| Herramienta | Versión | Uso |
+|---|---|---|
+| Node.js / npm | 24.4.1 / 11.4.2 | Ejecución local |
+| Playwright + Chromium | 1.64.1 | Pruebas E2E y de API |
+| k6 | 2.3.0 | Prueba de rendimiento |
+| actionlint + shellcheck | 1.7.12 | Validación estática del workflow |
+| GitHub Actions | `checkout`, `setup-node` y `upload-artifact` v7; `setup-k6-action` v1 | Pipeline |
+| Git | 2.39.5 | Historial con un commit por reto |
+| Homebrew | — | Instalación de k6, actionlint y shellcheck |
+| Claude Code | Claude Opus 5.5 | Asistente de IA (ver la sección siguiente) |
 
 ## Uso de asistentes de inteligencia artificial
 
-_Se completa al cierre._
+Se usó **Claude Code** (Anthropic, modelo Claude Opus 5.5) como asistente durante toda la prueba, con un trabajo en pareja paso a paso.
+
+- **Qué hizo el asistente:**
+  - leyó el código y ejecutó la suite, la aplicación y los comandos en la terminal del candidato, a la vista;
+  - propuso el diagnóstico y las opciones de solución;
+  - redactó el código, la configuración y la documentación.
+- **Qué hizo el candidato:**
+  - definió la forma de trabajo: un reto a la vez, viendo cada ejecución y validando antes de cada commit;
+  - decidió el alcance y las políticas a partir de las opciones propuestas: no corregir el producto salvo F4, `test.fail()` con release bloqueado por F2/F3/F5, el orden base → 3 → 2, k6, y rechazar el PR;
+  - pidió reproducir visualmente los defectos;
+  - revisó los diffs y aprobó cada commit.
+- **Cómo se verificó lo generado:**
+  - ninguna afirmación del diagnóstico quedó sin reproducir (por UI, API o Playwright);
+  - cada prueba de defecto conocido se comprobó fallando por la razón correcta, no por un error de la prueba;
+  - el pipeline se validó con actionlint, simulación local y fallas forzadas.
+- **Trazabilidad:** cada commit de trabajo incluye la línea `Co-Authored-By: Claude`.
 
 ## Hora declarada de inicio y finalización
 
-_La declara el candidato._
+- **Inicio:** 2026-10-27, 09:20 (UTC-5). Es el primer registro verificable: la instalación de dependencias.
+- **Finalización:** 2026-10-27, 11:23 (UTC-5). Hora del commit de cierre.

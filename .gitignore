@@ -1,6 +1,7 @@
 node_modules/
-playwright-report/
-test-results/
+# Anclados a la raíz: la copia de la evidencia en evidence/playwright-report/ sí se versiona.
+/playwright-report/
+/test-results/
 src/data/quality-lab.json
 .env
 artifacts/

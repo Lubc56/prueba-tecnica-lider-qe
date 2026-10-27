@@ -22,7 +22,7 @@
 
 ### 1. Contraseña de administrador quemada en el código — Crítica
 
-- **Ubicación:** L1 (`const adminPassword = 'Admin2026!'`), usada en L11 y L26.
+- **Ubicación:** L1 (`const adminPassword = '…'`; el valor se omite a propósito en esta revisión), usada en L11 y L26.
 - **Descripción:** la contraseña de una cuenta de administrador está en texto plano en el repositorio.
 - **Riesgo e impacto:**
   - Cualquiera con acceso al repositorio, a un fork o a un log obtiene privilegios de administrador.
@@ -68,8 +68,8 @@
 
 ### 5. Datos personales con apariencia real y quemados — Alta
 
-- **Ubicación:** L7–9 y L22–24: documento `1018456789`, nombre `Laura Gómez`, correo `laura.gomez@correo.com`.
-- **Descripción:** el documento tiene formato de cédula real y el correo usa un dominio público real.
+- **Ubicación:** L7–9 y L22–24: documento, nombre y correo de una persona (los valores se omiten a propósito en esta revisión).
+- **Descripción:** el documento tiene formato de cédula real, el nombre es de persona real y el correo usa un dominio público real.
 - **Riesgo e impacto:**
   - Si corresponden a una persona real, se tratan sus datos sin autorización, en contra de la normativa de protección de datos (en Colombia, por ejemplo, la Ley 1581 de 2012).
   - El sistema podría enviar notificaciones de pago a un correo real.

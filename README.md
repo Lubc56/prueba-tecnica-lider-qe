@@ -105,7 +105,7 @@ La evidencia y la reproducción de cada uno están en [`DIAGNOSTICO.md`](DIAGNOS
 | Pull request | Suite completa | Perfil reducido (10 usuarios, 1 min) |
 | Push a `main`, nightly o manual | Suite completa | Perfil completo (50 usuarios, 5 min) |
 
-- Cualquier prueba fallida o umbral incumplido **hace fallar el pipeline**.
+- Cualquier prueba fallida o umbral incumplido **hace fallar el pipeline**. Para que además **impida el merge**, falta marcar esos checks como obligatorios en la protección de `main` (pendiente documentado en `DECISIONES.md`).
 - El reporte HTML se publica siempre. Videos, capturas y trazas solo cuando algo falla.
 - Las variables y secretos vienen de los ambientes de GitHub (`ci`, `qa`, `staging`), y la ejecución manual permite elegir el ambiente.
 - El job E2E corre sobre la imagen oficial de Playwright, que ya trae el navegador y sus dependencias. No se reinstalan en cada corrida.

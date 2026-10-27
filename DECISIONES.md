@@ -178,6 +178,7 @@ El detalle está en `REVISION_PR.md`.
 
 | Pendiente | Riesgo | Acción siguiente |
 |---|---|---|
+| **Protección de la rama `main` con checks obligatorios.** El pipeline detecta, pero no impide: en los PR #1 y #2 el botón de merge seguía disponible con los checks en rojo | Alguien con permisos puede integrar un PR con pruebas o umbrales incumplidos | En *Settings → Branches*, exigir "Pruebas funcionales (Playwright)" y "Rendimiento (k6)" como checks requeridos en `main`. Se deja sin activar a propósito para esta entrega |
 | Registrar F1–F7 en la herramienta de seguimiento del equipo | Defectos conocidos solo en la documentación, sin dueño ni fecha | Un ticket por defecto con su prueba asociada; F2, F3 y F5 marcados como bloqueantes de release |
 | Flujo E2E con el servicio de riesgo en `REJECTED` | Una regresión en el manejo del rechazo en la UI no se detectaría | Segundo proyecto de Playwright con su propia instancia en `RISK_MODE=rejected` |
 | Rendimiento con volumen de datos representativo | La latencia medida es el mejor caso (BD recién creada); con miles de operaciones puede incumplir el SLO | Sembrar la BD con un volumen similar a producción y repetir en un ambiente parecido a producción |
@@ -225,4 +226,6 @@ Se usó **Claude Code** (Anthropic, modelo Claude Opus 5.5) como asistente duran
 ## Hora declarada de inicio y finalización
 
 - **Inicio:** 2026-10-27, 09:20 (UTC-5). Es el primer registro verificable: la instalación de dependencias.
-- **Finalización:** 2026-10-27, 11:23 (UTC-5). Hora del commit de cierre.
+- **Finalización:** 2026-10-27, 12:21 (UTC-5). Hora del último commit de la entrega.
+- **Dedicación total:** 3 h 1 min, dentro del máximo de 3 horas.
+- **Nota:** el cierre inicial fue a las 11:23. Después se agregaron el README propio (con el enunciado separado en `ENUNCIADO.md`), la imagen oficial de Playwright en CI (el job E2E bajó de 499 s a 41 s), los PR de demostración con fallos forzados y los ajustes de la validación final de cumplimiento (diagnóstico a una página y documentación de la protección de rama). Cada paso tiene su commit.

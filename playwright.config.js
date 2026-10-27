@@ -1,8 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { testDatabasePath } from './tests/support/test-environment.js';
 
-const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const isCI = Boolean(process.env.CI);
 
 // Con BASE_URL se prueba un ambiente ya desplegado; sin ella se levanta una instancia local aislada.
@@ -16,6 +14,8 @@ export default defineConfig({
   retries: 0,
   workers: 3,
   forbidOnly: isCI,
+  globalSetup: './tests/support/global-setup.js',
+  globalTeardown: './tests/support/global-teardown.js',
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: externalBaseUrl || localBaseUrl,
@@ -40,7 +40,7 @@ export default defineConfig({
         timeout: 15_000,
         env: {
           PORT: String(localPort),
-          DATABASE_PATH: path.join(rootDir, 'artifacts', 'e2e-db.json'),
+          DATABASE_PATH: testDatabasePath,
           RISK_MODE: process.env.RISK_MODE || 'approved'
         }
       }

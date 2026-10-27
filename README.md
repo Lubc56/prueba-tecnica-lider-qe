@@ -1,134 +1,135 @@
-# Prueba técnica asincrónica: rescate de una suite de calidad
+# Prueba técnica Líder QE: rescate de una suite de calidad
 
-## Objetivo
+[![Quality pipeline](https://github.com/Lubc56/prueba-tecnica-lider-qe/actions/workflows/quality.yml/badge.svg)](https://github.com/Lubc56/prueba-tecnica-lider-qe/actions/workflows/quality.yml)
 
-Evaluar la capacidad para diagnosticar, automatizar, estabilizar y gobernar una solución de pruebas existente.
+Solución a la prueba técnica descrita en [`ENUNCIADO.md`](ENUNCIADO.md): diagnosticar, automatizar, estabilizar y gobernar una suite de pruebas heredada.
 
-## Condiciones
+La suite original fallaba al 100 % y su resultado cambiaba entre corridas. Hoy corre en paralelo de forma determinista, **detecta 7 defectos reales del producto** y bloquea el pipeline ante cualquier regresión funcional o de rendimiento.
 
-- Dedicación esperada: máximo 3 horas.
-- Ventana de entrega: 48 horas desde la recepción.
-- Trabajo individual.
-- Puedes usar documentación y asistentes de inteligencia artificial. Debes declarar su uso en `DECISIONES.md`.
-- No se espera que agregues funcionalidades distintas a las solicitadas.
-- Si no completas una actividad, documenta qué quedó pendiente, el riesgo y la acción siguiente.
+## Entregables
 
-## Aplicación entregada
+| Reto | Qué se entrega | Dónde |
+|---|---|---|
+| 1. Diagnóstico | Por qué fallaba la suite: defectos del producto vs. de la automatización, con prioridades | [`DIAGNOSTICO.md`](DIAGNOSTICO.md) |
+| 2. Automatización funcional | Flujo E2E con Page Object, validaciones de negocio y confirmación por API | [`tests/operation-flow.spec.js`](tests/operation-flow.spec.js) |
+| 3. Datos sintéticos | Generador con reglas centralizadas, documentos únicos y limpieza | [`tests/support/data/`](tests/support/data/) |
+| 4. Rendimiento | k6 con 50 usuarios durante 5 minutos y umbrales automáticos | [`performance/`](performance/README.md) |
+| 5. Pipeline | GitHub Actions que falla de verdad, publica reportes y usa secretos | [`.github/workflows/quality.yml`](.github/workflows/quality.yml) |
+| 6. Liderazgo técnico | Revisión del PR: 9 hallazgos y la decisión de rechazarlo | [`REVISION_PR.md`](REVISION_PR.md) |
+| Transversal | Decisiones, pendientes, riesgos, herramientas y uso de IA | [`DECISIONES.md`](DECISIONES.md) |
 
-El repositorio contiene:
-
-- Frontend web.
-- APIs para clientes y operaciones.
-- Base de datos de prueba persistida en archivo JSON.
-- Integración con un servicio externo de riesgo simulable.
-- Suite Playwright parcialmente construida.
-- Pipeline de integración continua.
-- Archivo de código para revisión técnica.
-
-## Requisitos locales
-
-- Node.js 20 o superior.
-- npm.
-- Playwright Chromium.
-- k6 o JMeter para el reto de rendimiento.
+El historial tiene **un commit por reto**, desde el estado original (`Reto 0`); se ve con `git log --oneline`.
 
 ## Inicio rápido
 
+Requisitos: Node.js 20 o superior (probado con 24), npm y, para rendimiento, [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/).
+
 ```bash
-npm install
+npm ci
 npx playwright install chromium
-npm run db:reset
-npm start
 ```
 
-Aplicación: `http://127.0.0.1:3000`
-
-Para ejecutar la suite existente:
+### Pruebas funcionales
 
 ```bash
 npm run test:e2e
 ```
 
-## Reto 1: diagnóstico del arnés — 30 minutos
+No hace falta levantar la aplicación: Playwright arranca su propia instancia en el puerto `3100`, con una base de datos aislada que se borra al terminar.
 
-Levanta el proyecto, ejecuta las pruebas y determina:
+| Para… | Comando |
+|---|---|
+| Ver el navegador | `npx playwright test --headed` |
+| Ir paso a paso | `npm run test:e2e:ui` |
+| Abrir el último reporte | `npm run test:e2e:report` |
+| Correr un grupo | `npx playwright test --grep @e2e` (también `@smoke`, `@negative`, `@data`, `@known-defect`) |
+| Repetir los datos de una corrida | `DATA_SEED=<semilla impresa al inicio> npm run test:e2e` |
 
-- Por qué fallan las pruebas.
-- Cuáles hallazgos son defectos funcionales y cuáles pertenecen a la automatización.
-- Qué dependencias requiere la solución.
-- Qué riesgos existen en el diseño actual.
-- Qué corregirías primero.
+### Prueba de rendimiento
 
-Entrega el resultado en `DIAGNOSTICO.md`, con una extensión máxima de una página.
+```bash
+npm run db:reset && npm start
+```
 
-## Reto 2: automatización funcional — 45 minutos
+En otra terminal:
 
-Automatiza el flujo completo:
+```bash
+npm run test:performance
+```
 
-> Crear un cliente, realizar una operación, validar el resultado en la interfaz y confirmar el registro mediante API.
+Para una corrida corta: `npm run test:performance -- -e VUS=10 -e DURATION=30s`. Los detalles (umbrales, resultados y cuándo bloquea el pipeline) están en [`performance/README.md`](performance/README.md).
 
-La solución debe contemplar:
+### Aplicación
 
-- Componentes reutilizables o Page Objects.
-- Validaciones con sentido de negocio.
-- Evidencias del resultado.
-- Esperas basadas en condiciones.
-- Independencia entre pruebas.
-- Ejecución local y en pipeline.
+```bash
+npm run db:reset && npm start
+```
 
-La evaluación considera confiabilidad, legibilidad y mantenibilidad, no únicamente que la prueba termine correctamente.
+Queda disponible en `http://127.0.0.1:3000`. Todas las variables configurables están documentadas en [`.env.example`](.env.example).
 
-## Reto 3: datos sintéticos — 30 minutos
+## Qué cubre la suite
 
-Reemplaza los datos quemados por un generador capaz de producir:
+27 pruebas que corren en unos 4 segundos:
 
-- Clientes válidos.
-- Documentos únicos.
-- Clientes con saldo insuficiente.
-- Datos inválidos para pruebas negativas.
-- Limpieza posterior a la ejecución.
+| Grupo | Pruebas | Qué valida |
+|---|---|---|
+| `@e2e` | 2 | Flujo completo crear cliente → operar → validar en la UI → confirmar por API, y el rechazo por saldo insuficiente |
+| `@negative` | 14 | El API rechaza datos inválidos, documentos duplicados, saldo insuficiente y montos inválidos |
+| `@known-defect` | 5 | Defectos conocidos del producto, marcados con `test.fail()` |
+| `@data` | 4 | Garantías del generador de datos: reglas, unicidad, coherencia y reproducibilidad |
+| `@smoke` | 2 | La API y el frontend responden |
 
-La solución debe centralizar las reglas de generación y permitir modificarlas sin cambiar las pruebas. Documenta en `DECISIONES.md` la estrategia aplicada y sus limitaciones.
+## Defectos conocidos del producto
 
-## Reto 4: prueba no funcional — 30 minutos
+La aplicación es el sistema bajo prueba, así que **no se corrigió**. La única excepción es F4, porque impedía ejecutar el arnés. Cada defecto tiene una prueba que describe el comportamiento correcto y está marcada con `test.fail()`:
+- el pipeline queda en verde mientras no aparezca nada nuevo;
+- si alguien corrige un defecto, su prueba avisa;
+- la lista de defectos abiertos se publica en el resumen de cada corrida.
 
-Crea en la carpeta `performance` una prueba para `GET /api/clients/1/summary` con k6 o JMeter:
+| ID | Defecto | Impacto |
+|---|---|---|
+| F1 | El resumen muestra siempre `PENDING` | El usuario ve un estado falso |
+| F2 | Se valida el saldo sin el cargo del 10 % | Saldos negativos — **bloquea release** |
+| F3 | Dos operaciones simultáneas (o un doble clic) sobregiran la cuenta | Pérdida de dinero — **bloquea release** |
+| F4 | Los estáticos dan 404 en rutas con espacios | Corregido: bloqueaba el arnés |
+| F5 | XSS almacenado en el nombre del cliente | Seguridad — **bloquea release** |
+| F6 | El API acepta saldo negativo o no numérico y correos inválidos | Datos corruptos |
+| F7 | El dinero se calcula en coma flotante | Errores de redondeo |
 
-- 50 usuarios concurrentes.
-- Duración de cinco minutos.
-- Tiempo de respuesta objetivo menor a 800 ms.
-- Tasa de error inferior al 1 %.
+La evidencia y la reproducción de cada uno están en [`DIAGNOSTICO.md`](DIAGNOSTICO.md).
 
-Configura umbrales automáticos y explica cuándo debe bloquearse el pipeline. Si la ejecución completa excede el tiempo disponible, entrega el script configurado y evidencia de una ejecución reducida.
+## Pipeline
 
-## Reto 5: reparación del pipeline — 30 minutos
+| Evento | Pruebas funcionales | Rendimiento |
+|---|---|---|
+| Pull request | Suite completa | Perfil reducido (10 usuarios, 1 min) |
+| Push a `main`, nightly o manual | Suite completa | Perfil completo (50 usuarios, 5 min) |
 
-Ajusta el pipeline para que:
+- Cualquier prueba fallida o umbral incumplido **hace fallar el pipeline**.
+- El reporte HTML se publica siempre. Videos, capturas y trazas solo cuando algo falla.
+- Las variables y secretos vienen de los ambientes de GitHub (`ci`, `qa`, `staging`), y la ejecución manual permite elegir el ambiente.
+- El job E2E corre sobre la imagen oficial de Playwright, que ya trae el navegador y sus dependencias. No se reinstalan en cada corrida.
 
-- Ejecute correctamente las pruebas.
-- Publique el reporte.
-- Conserve videos, capturas y trazas solo cuando ocurra un fallo.
-- Parametrice secretos y ambientes.
-- Falle cuando se incumplan pruebas o umbrales de rendimiento.
+## Estructura
 
-Si no puedes ejecutar GitHub Actions, entrega el archivo corregido y documenta cómo validaste su comportamiento.
-
-## Reto 6: liderazgo técnico — 15 minutos
-
-Revisa `review-target/payment-helper.js` y registra los comentarios en `REVISION_PR.md`.
-
-Clasifica los riesgos, recomienda correcciones y decide si apruebas, solicitas cambios o rechazas el pull request.
-
-## Entrega
-
-Envía:
-
-- Repositorio o archivo ZIP.
-- Código modificado.
-- `DIAGNOSTICO.md`.
-- `DECISIONES.md`.
-- `REVISION_PR.md`.
-- Reportes y evidencias generadas.
-- Historial de commits o un archivo `CAMBIOS.md` con el orden de trabajo.
-
-No incluyas bases de datos con información personal real, contraseñas o tokens.
+```
+├── src/                      Aplicación bajo prueba (solo se corrigió F4)
+├── tests/
+│   ├── operation-flow.spec.js    Flujo E2E
+│   ├── known-defects.spec.js     F1, F2, F3, F5 y F7
+│   ├── api-negative.spec.js      Validaciones del API (incluye F6)
+│   ├── data-factory.spec.js      Garantías del generador de datos
+│   ├── smoke.spec.js             Salud del arnés
+│   └── support/
+│       ├── pages/                Page Object
+│       ├── api/                  Cliente del API
+│       ├── data/                 Reglas, fábrica y casos inválidos
+│       ├── reporters/            Resumen de defectos conocidos
+│       └── fixtures.js …         Fixtures, reglas de negocio, evidencias, setup y limpieza
+├── performance/              Prueba k6, su documentación y la evidencia de la corrida
+├── evidence/                 Reporte HTML de Playwright de la corrida final
+├── .github/workflows/        Pipeline
+├── review-target/            Código del PR revisado (sin cambios)
+├── DIAGNOSTICO.md · DECISIONES.md · REVISION_PR.md
+└── ENUNCIADO.md              Enunciado original de la prueba
+```

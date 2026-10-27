@@ -133,14 +133,20 @@ El detalle (cómo ejecutar, parámetros, resultados y política de bloqueo) est�
   - Corre después del E2E (`needs`), con perfil reducido en los PR (10 usuarios, 1 min) y completo en `main`, nightly y ejecución manual.
   - Publica en el resumen del job una tabla con los umbrales, leídos del propio resultado de k6, y sube `k6-report` como artefacto.
 - **Higiene:** `permissions: contents: read` (mínimo privilegio), `concurrency` para cancelar corridas viejas de la misma rama y `timeout-minutes` por job.
+- **Imagen oficial de Playwright en el job E2E** (ajuste tras la primera ejecución real):
+  - Medición: instalar Chromium y sus dependencias del sistema tomó **480 s**; las pruebas, **5 s**. De esos 480 s, **459 s fueron paquetes del sistema** (`apt`: 25.9 MB a 56 kB/s desde el mirror de Ubuntu) y **4 s la descarga del navegador**.
+  - Se descartaron los artifacts: guardan resultados de una corrida para descargarlos, no son para reutilizar dependencias entre corridas.
+  - Se descartó cachear los navegadores (`actions/cache`): solo evita la descarga del navegador. Las dependencias del sistema (`apt`) se siguen instalando en cada corrida, y la documentación de Playwright desaconseja ese caché porque restaurarlo tarda casi lo mismo que descargar.
+  - La imagen `mcr.microsoft.com/playwright:v1.64.1-noble` trae todo instalado. Su versión debe coincidir con la de `@playwright/test`; si no, Playwright falla indicando que faltan los navegadores.
+  - Las dependencias de npm ya se cacheaban con `setup-node` (`npm ci` tarda 2 s).
 
-**Cómo se validó sin ejecutar GitHub Actions**
+**Cómo se validó** (los pasos 1 a 4, antes de tener el repositorio publicado)
 
 1. **actionlint 1.7.12 + shellcheck:** 0 errores. Sobre el workflow **original** también da 0: el linter valida sintaxis, no lógica. Por eso hacen falta los pasos siguientes.
 2. **Simulación del job E2E** (`CI=true`, con `GITHUB_STEP_SUMMARY` apuntando a un archivo local): código 0, 27 pruebas pasan, aparece la anotación `::notice`, el resumen muestra los 8 defectos abiertos y `test-results/` pesa 36 KB sin videos ni trazas.
 3. **Falla forzada** (`RISK_MODE=rejected`): código 1, anotación `::error` con "esperado APPROVED, recibido REJECTED", y video, captura y traza **solo** de la prueba que falló.
 4. **Simulación del job de rendimiento:** el perfil reducido por variables de entorno sale con código 0 y resumen ✅; con un umbral imposible sale con código 99 y resumen ❌.
-5. **Pendiente:** la primera ejecución real en GitHub, al publicar el repositorio. Antes hay que crear el ambiente `ci` y el secreto `RISK_API_TOKEN`.
+5. **Ejecución real en GitHub Actions** (corrida `40541217080`, push a `main`): **en verde**. El job E2E corrió las 27 pruebas y el job de rendimiento, con perfil completo (15.001 peticiones), dio p95 = 2.79 ms y 0 % de errores.
 
 ### Reto 6: liderazgo técnico
 
@@ -163,12 +169,10 @@ El detalle está en `REVISION_PR.md`.
 
 | Pendiente | Riesgo | Acción siguiente |
 |---|---|---|
-| Primera ejecución real del pipeline en GitHub Actions | Diferencias entre el runner y la simulación local: dependencias del sistema, permisos, ambientes no creados | Crear el ambiente `ci` y el secreto `RISK_API_TOKEN`, publicar el repositorio y revisar la primera corrida |
 | Registrar F1–F7 en la herramienta de seguimiento del equipo | Defectos conocidos solo en la documentación, sin dueño ni fecha | Un ticket por defecto con su prueba asociada; F2, F3 y F5 marcados como bloqueantes de release |
 | Flujo E2E con el servicio de riesgo en `REJECTED` | Una regresión en el manejo del rechazo en la UI no se detectaría | Segundo proyecto de Playwright con su propia instancia en `RISK_MODE=rejected` |
 | Rendimiento con volumen de datos representativo | La latencia medida es el mejor caso (BD recién creada); con miles de operaciones puede incumplir el SLO | Sembrar la BD con un volumen similar a producción y repetir en un ambiente parecido a producción |
 | Barreras propuestas en el Reto 6: escaneo de secretos, `no-wait-for-timeout`, bloqueo de URLs de producción | Credenciales o esperas fijas pueden volver a llegar a un PR | Agregar `gitleaks` y `eslint-plugin-playwright` al pipeline como pasos bloqueantes |
-| Caché de navegadores de Playwright en CI | Cerca de 1 minuto extra por corrida | Cachear `~/.cache/ms-playwright` con la versión de Playwright como clave |
 
 ## Riesgos pendientes
 

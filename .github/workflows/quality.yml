@@ -32,6 +32,12 @@ jobs:
     name: Pruebas funcionales (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Imagen oficial de Playwright: Chromium y sus dependencias del sistema ya vienen instalados.
+    # Instalarlos en cada corrida tomó 8 minutos en la primera ejecución real; las pruebas, 5 segundos.
+    # La versión de la imagen debe coincidir con @playwright/test del package-lock.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001
     # Cada ambiente de GitHub define sus variables (BASE_URL, RISK_MODE) y secretos (RISK_API_TOKEN).
     environment: ${{ inputs.environment || 'ci' }}
     env:
@@ -48,9 +54,6 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
-
-      - name: Instalar Chromium y dependencias del sistema
-        run: npx playwright install --with-deps chromium
 
       # Playwright levanta su propia instancia aislada (playwright.config.js); no se arranca la app a mano.
       - name: Ejecutar pruebas

@@ -28,4 +28,10 @@ export class QualityLabApi {
     expect(response.status()).toBe(200);
     return response.json();
   }
+
+  async getOperation(operationId) {
+    const response = await this.#request.get(`/api/operations/${operationId}`);
+    expect(response.status(), `operación ${operationId} registrada`).toBe(200);
+    return response.json();
+  }
 }

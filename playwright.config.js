@@ -11,6 +11,10 @@ const localBaseUrl = `http://127.0.0.1:${localPort}`;
 export default defineConfig({
   testDir: './tests',
   timeout: 20_000,
+  // Margen para el servicio de riesgo (hasta ~1 s) y la recarga del resumen (hasta 1,5 s) en CI.
+  expect: { timeout: 10_000 },
+  // Pruebas independientes: cualquier orden y cualquier reparto entre workers debe funcionar.
+  fullyParallel: true,
   retries: 0,
   workers: 3,
   forbidOnly: isCI,

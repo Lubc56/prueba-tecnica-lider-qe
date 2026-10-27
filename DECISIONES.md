@@ -55,6 +55,34 @@ El generador de datos (Reto 3) va antes del flujo E2E (Reto 2) porque el Reto 2 
 - **Variedad limitada:** el catálogo cubre las reglas de negocio, no fuzzing (nombres largos, unicode extremo, inyección).
 - **Limpieza siempre al terminar:** la BD se borra incluso si hubo fallos; `KEEP_TEST_DATA=true` la conserva para depurar.
 
+### Reto 2: automatización funcional
+
+| Pieza | Archivo | Responsabilidad |
+|---|---|---|
+| Page Object | `tests/support/pages/operations-lab-page.js` | Ubica los campos por su etiqueta visible y espera la respuesta real del API en cada acción. |
+| Reglas de negocio | `tests/support/business-rules.js` | Saldo esperado (monto + cargo) y formato de moneda. Los valores esperados se calculan, no se escriben a mano. |
+| Evidencias | `tests/support/evidence.js` | Capturas por paso y JSON de la confirmación por API, adjuntos al reporte HTML. |
+| Flujo E2E | `tests/operation-flow.spec.js` | Camino feliz completo y rechazo por saldo insuficiente desde la UI. |
+| Defectos conocidos | `tests/known-defects.spec.js` | F1, F2, F3, F5 y F7 con `test.fail()` (F6 está en `api-negative.spec.js`). |
+
+- **Validaciones con sentido de negocio:**
+  - el ID que muestra la UI es el que devolvió el API, y la UI lo precarga en la operación;
+  - el saldo baja exactamente `monto + cargo`;
+  - por API, la operación existe con el cliente, monto y estado correctos, una referencia externa UUID, y es la única del cliente.
+- **Esperas por condición:** aserciones web-first (`toHaveText`, `toHaveValue`) y `waitForResponse` en el Page Object. No hay ningún `waitForTimeout`.
+- **Independencia:** cada prueba crea sus propios datos y `fullyParallel: true` las reparte en cualquier orden entre workers. Las precondiciones que no son objeto de la prueba se crean por API.
+- **Evidencias:** el flujo adjunta capturas de cada paso y el JSON de la confirmación aunque pase, porque son la evidencia del resultado de negocio. Video, traza y captura de fallo solo se conservan cuando algo falla.
+- **Saldo por API con `toBeCloseTo(…, 2)`:** compara al centavo para no confundir el flujo con F7, que tiene su propia prueba.
+- **Política de defectos conocidos:**
+  - `test.fail()` mantiene el pipeline útil como señal de regresión: verde significa "nada nuevo se rompió", no "el producto no tiene defectos".
+  - Los bugs encontrados no son errores del API sino respuestas `201` que debieron ser rechazos. El front no puede advertirlos; por eso cada uno tiene su prueba.
+  - **F2, F3 y F5 bloquean el release** (pérdida de dinero y seguridad): un PR puede integrarse, pero la versión no sale a producción con ellos abiertos.
+  - Para que no queden ocultos tras un "27 passed", el pipeline publica la lista de defectos conocidos abiertos (Reto 5).
+- **Pruebas originales retiradas** (quedan en el commit `Reto 0`):
+  - `clients`, `operation` y `api-confirmation` quedan cubiertas por el flujo E2E;
+  - `summary-flaky` pasa a ser la prueba de F1.
+- **Local y pipeline:** el mismo comando (`npm run test:e2e`) en ambos. La config detecta `CI` y `BASE_URL`; el pipeline se ajusta en el Reto 5.
+
 ## Actividades no completadas
 
 _Se completa al cierre._

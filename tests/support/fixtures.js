@@ -1,6 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 import { QualityLabApi } from './api/quality-lab-api.js';
 import { TestDataFactory, seedFrom } from './data/test-data-factory.js';
+import { OperationsLabPage } from './pages/operations-lab-page.js';
 
 export const test = base.extend({
   // Misma DATA_SEED + mismo nombre de prueba → mismos datos, sin importar el worker ni el orden.
@@ -18,6 +19,10 @@ export const test = base.extend({
 
   api: async ({ request }, use) => {
     await use(new QualityLabApi(request));
+  },
+
+  labPage: async ({ page }, use) => {
+    await use(new OperationsLabPage(page));
   }
 });
 

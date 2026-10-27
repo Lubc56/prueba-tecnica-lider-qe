@@ -47,6 +47,9 @@ export const invalidClientCases = [
   }
 ];
 
+// Nombre con HTML inofensivo: si la UI lo ejecuta en vez de mostrarlo como texto, hay XSS (F5).
+export const htmlInjectionName = `<img src="x" onerror="document.title='XSS'">`;
+
 export const invalidAmountCases = [
   { description: 'cero', expected: invalidAmount, apply: () => 0 },
   { description: 'negativo', expected: invalidAmount, apply: factory => -factory.operationAmount() },

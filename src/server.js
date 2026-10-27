@@ -109,7 +109,7 @@ app.post('/api/operations', async (req, res) => {
     });
 
     if (status === 'APPROVED') {
-      const serviceCharge = amount * 0.1;
+      const serviceCharge = amount * 0.15;
       updateClientBalance(clientId, amount + serviceCharge);
     }
 

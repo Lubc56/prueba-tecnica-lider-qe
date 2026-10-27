@@ -1,16 +1,27 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const isCI = Boolean(process.env.CI);
+
+// Con BASE_URL se prueba un ambiente ya desplegado; sin ella se levanta una instancia local aislada.
+const externalBaseUrl = process.env.BASE_URL;
+const localPort = Number(process.env.TEST_PORT || 3100);
+const localBaseUrl = `http://127.0.0.1:${localPort}`;
 
 export default defineConfig({
   testDir: './tests',
   timeout: 20_000,
   retries: 0,
   workers: 3,
+  forbidOnly: isCI,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: process.env.BASE_URL || 'http://127.0.0.1:3000',
-    trace: 'on',
-    screenshot: 'on',
-    video: 'on'
+    baseURL: externalBaseUrl || localBaseUrl,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure'
   },
   projects: [
     {
@@ -18,10 +29,19 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     }
   ],
-  webServer: {
-    command: 'npm start',
-    url: 'http://127.0.0.1:3000/health',
-    reuseExistingServer: true,
-    timeout: 15_000
-  }
+  webServer: externalBaseUrl
+    ? undefined
+    : {
+        // BD propia y reiniciada en cada ejecución: nunca comparte estado con la de desarrollo.
+        command: 'node scripts/reset-db.js && node src/server.js',
+        // Se espera por el frontend, no por /health: /health responde 200 aunque la UI dé 404 (F4).
+        url: `${localBaseUrl}/`,
+        reuseExistingServer: false,
+        timeout: 15_000,
+        env: {
+          PORT: String(localPort),
+          DATABASE_PATH: path.join(rootDir, 'artifacts', 'e2e-db.json'),
+          RISK_MODE: process.env.RISK_MODE || 'approved'
+        }
+      }
 });

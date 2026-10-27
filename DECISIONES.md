@@ -142,6 +142,14 @@ El detalle (cómo ejecutar, parámetros, resultados y política de bloqueo) est�
 4. **Simulación del job de rendimiento:** el perfil reducido por variables de entorno sale con código 0 y resumen ✅; con un umbral imposible sale con código 99 y resumen ❌.
 5. **Pendiente:** la primera ejecución real en GitHub, al publicar el repositorio. Antes hay que crear el ambiente `ci` y el secreto `RISK_API_TOKEN`.
 
+### Reto 6: liderazgo técnico
+
+El detalle está en `REVISION_PR.md`.
+
+- **Decisión: rechazar el PR de `payment-helper.js`.** Tiene 9 hallazgos: 2 críticos (contraseña de administrador en el código y ejecución contra producción), 4 altos, 2 medios y 1 bajo.
+- **Por qué rechazar y no solicitar cambios:** la credencial ya quedó en el historial de la rama (hay que rotarla y eliminar la rama), y el diseño exige reescribirlo sobre los componentes existentes.
+- **Acciones de equipo además del código:** escaneo de secretos en CI, la regla `no-wait-for-timeout`, bloqueo de URLs de producción, un checklist en la plantilla de PR y pair programming con el autor.
+
 ## Actividades no completadas
 
 _Se completa al cierre._

@@ -20,7 +20,13 @@ export default defineConfig({
   forbidOnly: isCI,
   globalSetup: './tests/support/global-setup.js',
   globalTeardown: './tests/support/global-teardown.js',
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    ['./tests/support/reporters/known-defects-reporter.js'],
+    // En CI los fallos aparecen además como anotaciones sobre el código en el pull request.
+    ...(isCI ? [['github']] : [])
+  ],
   use: {
     baseURL: externalBaseUrl || localBaseUrl,
     trace: 'retain-on-failure',

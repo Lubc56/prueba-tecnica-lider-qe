@@ -96,9 +96,51 @@ El detalle (cómo ejecutar, parámetros, resultados y política de bloqueo) est�
 - **Errores con aborto anticipado:** `http_req_failed < 1 %` con `abortOnFail` tras 30 s de calentamiento, para no gastar 5 minutos de pipeline en una prueba ya perdida.
 - **`checks > 99 %`:** se valida el contenido, no solo el código HTTP; el resumen debe ser del cliente pedido.
 - **Precondición en `setup()`:** si el ambiente no tiene el cliente, falla en el primer segundo con un mensaje claro.
-- **Evidencia que no se pierde en silencio:** si la carpeta de destino no existe, k6 no escribe el resumen y aun así sale con código 0. El script de npm crea `performance/results/` antes de ejecutar.
+- **Evidencia que no se pierde en silencio:** si la carpeta de destino no existe, k6 no escribe el resumen y aun así sale con código 0. El script de npm crea `performance/results/` y la limpia antes de cada corrida.
+- **Evidencia entregada separada de la salida de cada corrida** (ajustado en el Reto 5):
+  - `performance/evidence/` (versionada) guarda la evidencia entregada;
+  - `performance/results/` (ignorada) es la salida de cada corrida;
+  - así el resumen del pipeline nunca puede leer un resultado viejo del repositorio.
 - **Dashboard en vivo y reporte HTML (`K6_WEB_DASHBOARD`):** el seguimiento visual equivale al de Gatling. Hallazgo: k6 no termina mientras un navegador siga conectado al dashboard. En CI no ocurre; en local está documentado en `performance/README.md`.
 - **Corrida completa ejecutada:** 50 usuarios, 5 minutos y 15.001 peticiones; p95 = 5.58 ms y 0 % de errores. El bloqueo se demostró con un objetivo imposible, que terminó con código 99.
+
+### Reto 5: pipeline (`.github/workflows/quality.yml`)
+
+| Problema original | Corrección |
+|---|---|
+| `continue-on-error: true`: el pipeline nunca fallaba | Eliminado. Cada job falla si falla una prueba o un umbral. |
+| Node 16 (el proyecto exige ≥20) | Node 24 LTS (Node 20 terminó su soporte en abril de 2026) |
+| `npm run e2e:test` no existe | `npm run test:e2e` |
+| `npm install` | `npm ci` con el lockfile versionado |
+| Chromium sin dependencias del sistema | `playwright install --with-deps chromium` |
+| `npm start &` sin esperar a que arranque | E2E: Playwright levanta su instancia aislada (`webServer`). Rendimiento: se espera `/health` antes de cargar. |
+| Token en texto plano en el YAML | `secrets.RISK_API_TOKEN` del ambiente de GitHub |
+| Reporte solo si todo pasaba y en una ruta inexistente (`reports/`) | `playwright-report/` siempre (`!cancelled()`), aunque falle |
+| k6 sin instalar, script inexistente y `\|\| true` | `grafana/setup-k6-action` con k6 2.3.0 fijo, el script real y sin `\|\| true` |
+| Actions v4 | v7 (versiones vigentes) |
+| `push` a cualquier rama + `pull_request` (corridas duplicadas) | `push` a `main`, `pull_request`, nightly y ejecución manual |
+
+- **Ambientes y secretos:**
+  - Se usan ambientes de GitHub: `ci` (por defecto), `qa` y `staging`.
+  - Cada uno define las variables `BASE_URL` y `RISK_MODE` y el secreto `RISK_API_TOKEN`.
+  - La ejecución manual permite elegir el ambiente. Si `BASE_URL` está vacía, las pruebas corren contra una instancia local en el runner.
+  - `.env.example` documenta todas las variables y marca cuáles son secretas.
+- **Evidencias:**
+  - El reporte HTML se publica siempre (14 días).
+  - `test-results/` (videos, capturas y trazas) se publica solo con `if: failure()` (7 días). Además, la config solo los genera cuando una prueba falla: hay doble barrera.
+- **Visibilidad de defectos conocidos:** un reporter propio (`tests/support/reporters/known-defects-reporter.js`) escribe en el resumen del job la tabla de defectos abiertos. Así un "27 passed" no los oculta, y si alguno se corrige lo marca para retirar el `test.fail()`.
+- **Rendimiento:**
+  - Corre después del E2E (`needs`), con perfil reducido en los PR (10 usuarios, 1 min) y completo en `main`, nightly y ejecución manual.
+  - Publica en el resumen del job una tabla con los umbrales, leídos del propio resultado de k6, y sube `k6-report` como artefacto.
+- **Higiene:** `permissions: contents: read` (mínimo privilegio), `concurrency` para cancelar corridas viejas de la misma rama y `timeout-minutes` por job.
+
+**Cómo se validó sin ejecutar GitHub Actions**
+
+1. **actionlint 1.7.12 + shellcheck:** 0 errores. Sobre el workflow **original** también da 0: el linter valida sintaxis, no lógica. Por eso hacen falta los pasos siguientes.
+2. **Simulación del job E2E** (`CI=true`, con `GITHUB_STEP_SUMMARY` apuntando a un archivo local): código 0, 27 pruebas pasan, aparece la anotación `::notice`, el resumen muestra los 8 defectos abiertos y `test-results/` pesa 36 KB sin videos ni trazas.
+3. **Falla forzada** (`RISK_MODE=rejected`): código 1, anotación `::error` con "esperado APPROVED, recibido REJECTED", y video, captura y traza **solo** de la prueba que falló.
+4. **Simulación del job de rendimiento:** el perfil reducido por variables de entorno sale con código 0 y resumen ✅; con un umbral imposible sale con código 99 y resumen ❌.
+5. **Pendiente:** la primera ejecución real en GitHub, al publicar el repositorio. Antes hay que crear el ambiente `ci` y el secreto `RISK_API_TOKEN`.
 
 ## Actividades no completadas
 
@@ -106,6 +148,8 @@ _Se completa al cierre._
 
 ## Riesgos pendientes
 
+- **Token expuesto en el historial:** el workflow original traía `RISK_API_TOKEN: qa-token-2026-visible` y quedó en el commit `Reto 0`, que se conserva como línea base. Ya no está en el código, pero publicar el repositorio expone el historial: si el token es real, debe rotarse.
+- **Rendimiento en runners compartidos:** la app y k6 comparten máquina, así que el job detecta regresiones relativas, no capacidad de producción (ver `performance/README.md`).
 - El camino `REJECTED` del servicio de riesgo no queda cubierto con `RISK_MODE=approved`. Cubrirlo requiere una segunda instancia u otro proyecto de Playwright con `RISK_MODE=rejected`.
 
 ## Herramientas utilizadas

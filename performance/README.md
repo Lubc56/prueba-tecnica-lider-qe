@@ -34,6 +34,7 @@ Si cualquier umbral se incumple, **k6 termina con código de salida 99** y el jo
 
    - Mientras corre hay un dashboard en vivo en `http://127.0.0.1:5665`. **Ciérralo al terminar:** k6 no imprime el resumen mientras un navegador siga conectado. En CI no aplica, porque nadie lo abre.
    - Al terminar deja `results/summary.json` (métricas) y `results/report.html` (gráficas; se abre en el navegador).
+   - `results/` es la salida de cada corrida: se limpia antes de ejecutar y no se versiona. La evidencia de la entrega está en `evidence/`.
 
 Para una corrida reducida, los parámetros se pasan después de `--`:
 
@@ -65,9 +66,9 @@ Ejecución completa en local, sobre una MacBook Air (Apple Silicon), con k6 2.3.
 
 Evidencias:
 
-- [`results/summary.json`](results/summary.json): métricas completas de la corrida de 5 minutos.
-- [`results/report.html`](results/report.html): reporte con gráficas de la misma corrida.
-- [`results/bloqueo-demo.txt`](results/bloqueo-demo.txt): la misma prueba con un objetivo imposible (`p95 < 1 ms`) termina con **código 99**, que es lo que bloquea el pipeline.
+- [`evidence/summary.json`](evidence/summary.json): métricas completas de la corrida de 5 minutos.
+- [`evidence/report.html`](evidence/report.html): reporte con gráficas de la misma corrida.
+- [`evidence/bloqueo-demo.txt`](evidence/bloqueo-demo.txt): la misma prueba con un objetivo imposible (`p95 < 1 ms`) termina con **código 99**, que es lo que bloquea el pipeline.
 
 ## Cuándo debe bloquearse el pipeline
 

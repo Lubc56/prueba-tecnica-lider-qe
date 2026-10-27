@@ -2,43 +2,129 @@ name: Quality pipeline
 
 on:
   push:
+    branches: [main]
   pull_request:
+  schedule:
+    # Carga completa nocturna, de lunes a viernes a las 06:00 UTC.
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente de GitHub del que se toman variables y secretos (BASE_URL vacía = instancia local en el runner)
+        type: choice
+        options: [ci, qa, staging]
+        default: ci
+      performance_profile:
+        description: Perfil de carga
+        type: choice
+        options: [full, reduced]
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  automated-tests:
+  e2e:
+    name: Pruebas funcionales (Playwright)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 20
+    # Cada ambiente de GitHub define sus variables (BASE_URL, RISK_MODE) y secretos (RISK_API_TOKEN).
+    environment: ${{ inputs.environment || 'ci' }}
+    env:
+      BASE_URL: ${{ vars.BASE_URL }}
+      RISK_MODE: ${{ vars.RISK_MODE || 'approved' }}
+      RISK_API_TOKEN: ${{ secrets.RISK_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 16
+          node-version: 24
+          cache: npm
 
-      - name: Install dependencies
-        run: npm install
+      - name: Instalar dependencias
+        run: npm ci
 
-      - name: Install browser
-        run: npx playwright install chromium
+      - name: Instalar Chromium y dependencias del sistema
+        run: npx playwright install --with-deps chromium
 
-      - name: Start application
-        env:
-          RISK_API_TOKEN: qa-token-2026-visible
-        run: npm start &
+      # Playwright levanta su propia instancia aislada (playwright.config.js); no se arranca la app a mano.
+      - name: Ejecutar pruebas
+        run: npm run test:e2e
 
-      - name: Execute tests
-        run: npm run e2e:test
-
-      - name: Publish report
-        if: success()
-        uses: actions/upload-artifact@v4
+      - name: Publicar reporte HTML
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
         with:
-          name: qe-report
-          path: reports/
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Conservar videos, capturas y trazas del fallo
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-evidencia-fallo
+          path: test-results/
+          retention-days: 7
 
   performance:
+    name: Rendimiento (k6)
+    # No tiene sentido medir el rendimiento de un build funcionalmente roto.
+    needs: e2e
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment || 'ci' }}
+    env:
+      BASE_URL: ${{ vars.BASE_URL || 'http://127.0.0.1:3000' }}
+      # Pull requests: perfil reducido para no alargar cada PR. main, nightly y ejecución manual: perfil completo.
+      PROFILE: ${{ github.event_name == 'pull_request' && 'reduced' || inputs.performance_profile || 'full' }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Run performance test
-        run: k6 run performance/load.js || true
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '2.3.0'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Levantar la aplicación en el runner
+        if: ${{ vars.BASE_URL == '' }}
+        env:
+          DATABASE_PATH: artifacts/perf-db.json
+          RISK_API_TOKEN: ${{ secrets.RISK_API_TOKEN }}
+        run: |
+          npm run db:reset
+          nohup npm start > artifacts/app.log 2>&1 &
+          timeout 30 bash -c 'until curl -sf http://127.0.0.1:3000/health > /dev/null; do sleep 1; done'
+
+      # Si se incumple un umbral, k6 termina con código 99 y el job falla: no hay "|| true".
+      - name: Ejecutar prueba de carga (perfil ${{ env.PROFILE }})
+        run: |
+          if [ "$PROFILE" = "reduced" ]; then export VUS=10 DURATION=1m; fi
+          npm run test:performance
+
+      - name: Resumen de rendimiento
+        if: ${{ !cancelled() }}
+        run: node .github/scripts/performance-summary.js
+
+      - name: Publicar reporte de rendimiento
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: k6-report
+          path: |
+            performance/results/
+            artifacts/app.log
+          if-no-files-found: ignore
+          retention-days: 14
